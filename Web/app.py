@@ -1,5 +1,6 @@
 from flask import Flask, render_template, flash, redirect, url_for, session, request, logging
-from flask_mysqldb import MySQL
+# from flask_mysqldb import MySQL
+import pyodbc
 from wtforms import Form, StringField, TextAreaField, PasswordField, DateTimeField, validators
 from passlib.hash import sha256_crypt
 from functools import wraps
@@ -9,12 +10,21 @@ import time
 
 app = Flask(__name__)
 
-app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = '12'
-app.config['MYSQL_DB'] = 'mydb'
-app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
-mysql = MySQL(app)
+# app.config['MYSQL_HOST'] = 'localhost'
+# app.config['MYSQL_USER'] = 'root'
+# app.config['MYSQL_PASSWORD'] = '12'
+# app.config['MYSQL_DB'] = 'mydb'
+# app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
+conn = pyodbc.connect("Driver={SQL Server Native Client 11.0};"
+                      "Server=DESKTOP-4SBKB3C\SQLEXPRESS;"
+                      "Database=mydb;"
+                      "Trusted_Connection=yes;")
+
+
+def __init__(self):
+    self.cur = conn.cursor()
+print("done")
+# mysql = MySQL(app)
 
 FORMAT = '%Y-%m-%d %H:%M:%S'
 def check_date(in_date):
@@ -70,10 +80,10 @@ def register():
         username = form.username.data
         password = str(form.password.data)
 
-        cur = mysql.connection.cursor()
+        cur = conn.cursor()
         cur.execute("""INSERT INTO Customer(email, lastName, firstName) VALUES('{}', '{}', '{}')""".format(email, lastname, firstname))
         cur.execute("""INSERT INTO User(userName, password, isVIP, Customer_email) VALUES('{}', '{}', 0, '{}')""".format(username, password, email))
-        mysql.connection.commit()
+        cur.connection.commit()
         cur.close()
         flash('Your are now registered and can log in', 'success')
         return redirect(url_for('login'))
@@ -81,7 +91,7 @@ def register():
 
 @app.route('/add_truck', methods=['GET', 'POST'])
 @is_logged_in
-def add_truck():
+def add_truck(self):
     form = AddTruckForm(request.form)
     if request.method == 'POST':
         if request.form['submit'] == 'Cancel':
@@ -89,11 +99,11 @@ def add_truck():
         elif request.form['submit'] == 'Add' and form.validate():
             vin = form.vin.data
             location = form.location.data
-            cur = mysql.connection.cursor()
+            cur = self.cur
             cur.execute("""INSERT INTO Truck VALUES('{}', 1, '{}')""".format(vin, location))
-            mysql.connection.commit()
+            cur.connection.commit()
             return redirect(url_for('truck'))
-        cur.close()
+        self.cur.close()
     return render_template('add_truck.html', form=form)
 
 @app.route('/logout')
@@ -105,8 +115,8 @@ def logout():
 
 @app.route('/truck')
 @is_logged_in
-def truck():
-    cur = mysql.connection.cursor()
+def truck(self):
+    cur = self.cur.connection.cursor()
     result = cur.execute("""SELECT * FROM Truck""")
     if result > 0:
         res = cur.fetchall()
@@ -120,16 +130,16 @@ def truck():
 
 @app.route('/edit_truck/<string:id>', methods=['GET', 'POST'])
 @is_logged_in
-def edit_truck(id):
+def edit_truck(self, id):
     form = AddTruckForm(request.form)
     if request.method == 'POST':
         if request.form['submit'] == 'Cancel':
             return redirect(url_for('truck'))
         elif request.form['submit'] == 'Edit':
             location = form.location.data
-            cur = mysql.connection.cursor()
+            cur = self.cur.connection.cursor()
             cur.execute("""UPDATE Truck SET truckLocation='{}' WHERE VIN='{}'""".format(location, id))
-            mysql.connection.commit()
+            self.cur.connection.commit()
             cur.close()
             flash('Truck VIN {} location has been updated to {}'.format(id, location), 'success')
             return redirect(url_for('truck'))
@@ -138,21 +148,21 @@ def edit_truck(id):
 
 @app.route('/delete_truck/<string:id>', methods=['POST'])
 @is_logged_in
-def delete_truck(id):
+def delete_truck(self, id):
     if 'DELETE' in id:
         idx = [i for i,a in enumerate(id) if a == '\'']
         vin = id[idx[0]+1:idx[1]]
-        cur = mysql.connection.cursor()
+        cur = self.cur.connection.cursor()
         cur.execute("""DELETE FROM Truck WHERE VIN='{}'""".format(vin))
-        mysql.connection.commit()
+        self.cur.connection.commit()
         cur.close()
         flash('Truck VIN {} Deleted'.format(vin), 'danger')
     return redirect(url_for('truck'))
 
 @app.route('/check_reservation')
 @is_logged_in
-def check_reservation():
-    cur = mysql.connection.cursor()
+def check_reservation(self):
+    cur = self.cur.connection.cursor()
     result = cur.execute("""SELECT * FROM Reservation""")
     if result > 0:
         res = cur.fetchall()
@@ -162,8 +172,8 @@ def check_reservation():
 
 @app.route('/check_payment')
 @is_logged_in
-def check_payment():
-    cur = mysql.connection.cursor()
+def check_payment(self):
+    cur = self.cur
     result = cur.execute("""SELECT * FROM Payment""")
     if result > 0:
         trans = cur.fetchall()
@@ -172,11 +182,11 @@ def check_payment():
     return render_template('/check_payment.html')
 
 @app.route('/login', methods=['GET', 'POST'])
-def login():
+def login(self):
     if request.method == 'POST':
         username = request.form['username']
         password_candidate = request.form['password']
-        cur = mysql.connection.cursor()
+        cur = self.cur
         result = cur.execute("""SELECT * FROM User WHERE userName='{}'""".format(username))
 
         if result > 0:
@@ -206,7 +216,7 @@ def login():
 
 @app.route('/make_reservation', methods=['GET', 'POST'])
 @is_logged_in
-def make_reservation():
+def make_reservation(self):
     form = MakeReservationForm(request.form)
     if request.method == 'POST':
         if request.form['submit'] == 'Cancel':
@@ -218,7 +228,7 @@ def make_reservation():
             todate = form.todate.data
             # totalrent = int(form.totalrent.data)
             totalrent = get_total_rent(fromdate, todate)
-            cur = mysql.connection.cursor()
+            cur = self.cur
             result = cur.execute("""SELECT * FROM Truck WHERE truckLocation='{}' AND isAvailable=1""".format(fromloc))
             if result > 0:
                 data = cur.fetchone()
@@ -246,7 +256,7 @@ def make_reservation():
 
 @app.route('/payment', methods=['GET', 'POST'])
 @is_logged_in
-def payment():
+def payment(self):
     form = PaymentForm(request.form)
     if request.method == 'POST':
         if request.form['submit'] == 'Cancel':
@@ -257,22 +267,22 @@ def payment():
             # billingAddress = form.billingAddress.data
             # code = form.code.data
             payID = 'pay' +str(session['resID'][3:])
-            cur = mysql.connection.cursor()
+            cur = self.cur
             cur.execute("""UPDATE Truck SET isAvailable=0 WHERE VIN='{}'""".format(session['vin']))
             cur.execute("""INSERT INTO Reservation(User_userName, Truck_VIN, reservationID, fromLocation, toLocation, rentMinutes, fromDate, toDate) VALUES('{}', '{}', '{}', '{}', '{}', {}, '{}', '{}')""".format(session['username'], session['vin'], session['resID'], session['fromloc'], session['toloc'], session['totalrent'], session['fromdate'], session['todate']))
             cur.execute("""INSERT INTO Payment VALUES('{}', '{}', '{}', '{}', {:.2f})""".format(session['username'], session['vin'], session['resID'], payID, session['amount']))
 
-            mysql.connection.commit()
+            cur.connection.commit()
             flash('Make Reservation Success', 'success')
             return redirect(url_for('reservation'))
 
-        cur.close()
+        self.cur.close()
     return render_template('payment.html', form=form)
 
 @app.route('/transaction')
 @is_logged_in
-def transaction():
-    cur = mysql.connection.cursor()
+def transaction(self):
+    cur = self.cur
     result = cur.execute("""SELECT * FROM Payment WHERE Reservation_User_userName='{}'""".format(session['username']))
     if result > 0:
         trans = cur.fetchall()
@@ -285,8 +295,8 @@ def transaction():
 
 @app.route('/reservation')
 @is_logged_in
-def reservation():
-    cur = mysql.connection.cursor()
+def reservation(self):
+    cur = self.cur
     result = cur.execute("""SELECT * FROM Reservation WHERE User_userName='{}'""".format(session['username']))
     if result > 0:
         res = cur.fetchall()
@@ -300,21 +310,21 @@ def reservation():
 
 @app.route('/delete_reservation/<string:id>', methods=['POST'])
 @is_logged_in
-def delete_reservation(id):
+def delete_reservation(self, id):
     if 'DELETE' in id:
         idx = [i for i,a in enumerate(id) if a == '\'']
         resid = id[idx[0]+1:idx[1]]
-        cur = mysql.connection.cursor()
+        cur = self.cur
         cur.execute("""DELETE FROM Payment WHERE Reservation_reservationID='{}'""".format(resid))
         cur.execute("""DELETE FROM Reservation WHERE reservationID='{}'""".format(resid))
-        mysql.connection.commit()
+        cur.connection.commit()
         cur.close()
         flash('Reservation ID {} and Payment Deleted'.format(resid), 'danger')
     return redirect(url_for('reservation'))
 
 @app.route('/')
-def index():
-    cur = mysql.connection.cursor()
+def index(self):
+    cur = self.cur
     result = cur.execute("SELECT * FROM Reservation")
     data = cur.fetchall()
     print(data[1])
