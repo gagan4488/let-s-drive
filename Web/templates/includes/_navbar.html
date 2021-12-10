@@ -7,13 +7,17 @@
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-      <a class="navbar-brand" href="#">Trexxet</a>
+      <a class="navbar-brand" href="#">
+        <img src="{{url_for('static', filename='label.jpg')}}"
+         width = "180" height="30"/>
+      </a>
+<!--      <a class="navbar-brand" href="#"><img class="sealImage" src="../imgs/download.jpg" ></a>-->
     </div>
     <div id="navbar" class="collapse navbar-collapse">
       <ul class="nav navbar-nav">
         {% if session.logged_in %}
           {% if session.is_admin %}
-            <li><a href="/truck">Truck</a></li>
+            <li><a href="/truck">Vehicles</a></li>
           {% else %}
             <li><a href="/transaction">Transaction</a></li>
             <li><a href="/reservation">Reservation</a></li>

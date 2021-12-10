@@ -1,8 +1,11 @@
 {% extends 'layout.html' %}
 
 {% block body %}
-  <div class="jumbotron text-center">
-    <h1>Trexxet</h1>
-    <p class="lead"> Trexxet is a truck rental company</p>
+  <div class="jumbotron text-center" style="background-image: url({{ url_for('static', filename='bg.jpg') }});">
+    <h1>Let's Drive</h1>
+    <p class="lead">Let's Drive is a car rental application. You can rent a car which
+      fits best to your budget.
+
+    </p>
   </div>
 {% endblock %}

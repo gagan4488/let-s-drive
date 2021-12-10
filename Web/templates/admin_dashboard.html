@@ -1,0 +1,32 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+  <h1>Dashboard</h1>
+
+ {% if plot1 != None %}
+
+      <h2></h2>
+ {% endif %}
+     <div>
+        <img src="data:image/png;base64,{{ plot }}">
+     </div>
+         <div>
+            <img src="data:image/png;base64,{{ plot1 }}">
+         </div>
+     <div>
+        <img src="data:image/png;base64,{{ plot2 }}">
+     </div>
+     <table class="table table-striped">
+    <tr>
+      <th>Car Type Unavailable</th>
+      <th>Location</th>
+    </tr>
+     {% for r in res %}
+      <tr>
+          <td>{{r.Location}}</td>
+          <td>{{r.Car_Type}}</td>
+      </tr>
+    {% endfor %}
+  </table>
+
+{% endblock %}
